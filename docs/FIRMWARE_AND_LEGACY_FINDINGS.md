@@ -99,3 +99,30 @@ Reading `src/slic3r/plugin/` and `src/slic3r/GUI/` directly surfaced four critic
    - `PySlicingPipelinePluginCapabilityTrampoline::execute()` grants a scoped allowed root **only** for `ctx.gcode_path.parent_path()` (the temp folder, not `ctx.output_name.parent_path()`). Any off-thread write outside allowed roots fails closed with `PermissionError` (`PluginAuditManager.cpp`).
 4. **Denied Path Keyword Substring Trap:**
    - `PluginAuditManager` unconditionally blocks any path component containing `"secret"`, `"cert"`, or `"conf"` (case-insensitive substring match, even inside `data_dir()`). Naming any plugin module `config.py` or `machine_config.py` would trigger audit denials!
+
+
+---
+
+## 10. Upstream Bug Discovered in `markwal/GPX@28f34600`: `-m or2` Silently Ignored
+
+During Phase 3 oracle testing comparing `orca_x3g --profile r2_factory` (`88.573186` XY steps/mm) against `gpx -I -r -m or2`, we observed that `gpx -I -r -m or2` STILL emitted `88.888889` steps/mm (`x_steps = -9956` for `X=-112.0` instead of `-9920`)!
+
+Inspecting `markwal/GPX@28f34600` (`src/gpx/gpx.c:168` and `src/shared/classic_machines.h:124`) revealed the exact root cause:
+```c
+// src/gpx/gpx.c:168
+if (init || gpx->machine.id != machine->id) {
+    memcpy(&gpx->machine, machine, sizeof(Machine));
+```
+- At startup (`init = 1`), GPX loads default machine `r2` (`replicator_2`, `88.888889` steps/mm), whose enum ID is `MACHINE_TYPE_REPLICATOR_2`.
+- In `classic_machines.h:124`, `or2` (`wrong_replicator_2`, `88.573186` steps/mm) **also** has `id = MACHINE_TYPE_REPLICATOR_2`.
+- When `-m or2` is passed on the command line (`init = 0`), `gpx->machine.id != machine->id` evaluates to **false**, so `memcpy` is skipped and GPX silently remains on `r2`!
+- **Verified workaround in GPX:** passing `-m r1 -m or2` switches `gpx->machine.id` away from `MACHINE_TYPE_REPLICATOR_2` first, after which `or2` actually loads and outputs `x_steps = -9920`, matching `orca_x3g --profile r2_factory` down to `0.00 µm`!
+
+---
+
+## 11. Additional GPX & OrcaSlicer `v2.5.2` Behavioral Observations (Phase 3)
+
+1. **GPX first move after `M132` (`RECALL_HOME_POSITION`):** GPX emits legacy unaccelerated Command `139` (`QUEUE_POINT_EXT`) for the single positioning move immediately after `M132`, whereas OrcaX3G uses the verified Replicator 2 home offsets `(152.0, 75.0, 0.0)` mm to emit accelerated Command `155` targeting the exact same integer steps.
+2. **GPX `G92 E0` spam:** On the 20 mm calibration cube (`01_calibration_cube.gcode`), GPX emitted **107 extra `Command 140` (`SET_POSITION_EXT`)** packets (one on every `G92 E0`), whereas OrcaX3G emitted **0** extra `Command 140` packets while matching GPX's cumulative extrusion to `0.00 µm` (`698.6119 mm` vs `698.6119 mm`) and avoiding `Command 140`'s 5-axis overwrite hazard.
+3. **GPX `-r` fan channel parity:** Under `-r` (RepRap flavor), GPX maps `M106`/`M107` to Tool Action `13` (`SLAVE_CMD_TOGGLE_VALVE`), matching OrcaX3G byte-for-byte.
+4. **OrcaSlicer `v2.5.2` `layer_change_gcode` placeholders:** Testing our presets in real OrcaSlicer `v2.5.2` confirmed that `[percentage_of_print]` is not a valid template variable in `layer_change_gcode`; OrcaSlicer `v2.5.2` natively emits `M73 P<pct>` progress updates automatically under `gcode_flavor = "marlin"`.
