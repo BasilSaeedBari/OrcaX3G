@@ -814,6 +814,63 @@ def simulate_x3g(
             result.motion_events.append(ev)
             result.events.append(ev)
 
+        elif pkt.kind == "queue_point_ext":
+            # Legacy Command 139: all 5 axes are absolute step coordinates, dda_interval_us per master step
+            new_x = int(f["x"])
+            new_y = int(f["y"])
+            new_z = int(f["z"])
+            new_a = int(f["a"])
+            new_b = int(f["b"])
+            dx = new_x - x_s
+            dy = new_y - y_s
+            dz = new_z - z_s
+            da = new_a - a_s
+            db = new_b - b_s
+            x_s, y_s, z_s, a_s, b_s = new_x, new_y, new_z, new_a, new_b
+            x_known = True
+            y_known = True
+            z_known = True
+            cum_a_steps += da
+            master_steps = max(abs(dx), abs(dy), abs(dz), abs(da), abs(db))
+            dda_us = int(f["dda_interval_us"])
+            duration_s = (master_steps * dda_us) / 1_000_000.0 if (master_steps > 0 and dda_us > 0) else 0.0
+            result.total_time_s += duration_s
+            dist_mm = math.sqrt((dx / spm_x) ** 2 + (dy / spm_y) ** 2 + (dz / spm_z) ** 2)
+            if dist_mm == 0.0:
+                dist_mm = abs(da) / spm_a
+            speed = (dist_mm / duration_s) if duration_s > 0 else 0.0
+            dda_equiv = _round_half_away_local(1_000_000.0 / dda_us) if dda_us > 0 else 0
+            ev = DecodedMotionEvent(
+                packet_index=pkt.index,
+                opcode=pkt.opcode,
+                x_steps=x_s,
+                y_steps=y_s,
+                z_steps=z_s,
+                a_steps=a_s,
+                b_steps=b_s,
+                dx_steps=dx,
+                dy_steps=dy,
+                dz_steps=dz,
+                da_steps=da,
+                x_mm=x_s / spm_x,
+                y_mm=y_s / spm_y,
+                z_mm=z_s / spm_z,
+                x_known=x_known,
+                y_known=y_known,
+                z_known=z_known,
+                e_cum_mm=(cum_a_steps * ext_sign) / spm_a,
+                de_mm=(da * ext_sign) / spm_a,
+                master_steps=master_steps,
+                dda_rate=dda_equiv,
+                distance_mm=dist_mm,
+                feedrate_mult64=_round_half_away_local(speed * 64.0),
+                feedrate_mm_s=speed,
+                duration_s=duration_s,
+                relative_mask=0,
+            )
+            result.motion_events.append(ev)
+            result.events.append(ev)
+
         elif pkt.kind == "set_position":
             x_s = int(f["x"])
             y_s = int(f["y"])

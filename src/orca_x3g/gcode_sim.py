@@ -494,22 +494,20 @@ def simulate_gcode(
             res.events.append(cev)
 
         elif cmd in ("M0", "M1", "M25"):
-            if cmd == "M0":
-                if "P" in params and params["P"] is not None and params["P"] > 0:
-                    ms = _rha(params["P"])
-                    res.total_time_s += ms / 1000.0
-                    dev = ReferenceControlEvent(lineno, "dwell", {"delay_ms": ms})
-                    res.control_events.append(dev)
-                    res.events.append(dev)
-                elif "S" in params and params["S"] is not None and params["S"] > 0:
-                    ms = _rha(params["S"] * 1000.0)
-                    res.total_time_s += ms / 1000.0
-                    dev = ReferenceControlEvent(lineno, "dwell", {"delay_ms": ms})
-                    res.control_events.append(dev)
-                    res.events.append(dev)
-            cev = ReferenceControlEvent(lineno, "pause", {})
-            res.control_events.append(cev)
-            res.events.append(cev)
+            if "P" in params or "S" in params:
+                ms = 0
+                if "P" in params and params["P"] is not None:
+                    ms += _rha(params["P"])
+                if "S" in params and params["S"] is not None:
+                    ms += _rha(params["S"] * 1000.0)
+                res.total_time_s += ms / 1000.0
+                dev = ReferenceControlEvent(lineno, "dwell", {"delay_ms": ms})
+                res.control_events.append(dev)
+                res.events.append(dev)
+            else:
+                cev = ReferenceControlEvent(lineno, "pause", {})
+                res.control_events.append(cev)
+                res.events.append(cev)
 
         elif cmd == "M600":
             msg_ev = ReferenceControlEvent(lineno, "display_message", {"message": "Change Filament"})

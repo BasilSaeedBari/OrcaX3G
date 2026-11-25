@@ -155,17 +155,17 @@ def _tokenize_compact_words(code: str, line_number: int, raw_line: str) -> list[
                 while pos < length and chunk[pos].isdigit():
                     has_digits = True
                     pos += 1
-            if has_digits and pos < length and chunk[pos] in "eE":
+            # In compact concatenated words (e.g. "Z0.2E0.123" or "X10E5"), 'E' is the
+            # extruder axis letter unless explicitly formatted as signed scientific notation
+            # like "1.5e-05" or "1.5E+03" with no trailing decimal point.
+            if has_digits and pos + 2 < length and chunk[pos] in "eE" and chunk[pos + 1] in "+-":
                 exp_start = pos
-                pos += 1
-                if pos < length and chunk[pos] in "+-":
-                    pos += 1
+                pos += 2
                 exp_digits = False
                 while pos < length and chunk[pos].isdigit():
                     exp_digits = True
                     pos += 1
-                if not exp_digits:
-                    # Not a scientific exponent (e.g., "X10E5" -> E is the next word!)
+                if not exp_digits or (pos < length and chunk[pos] == "."):
                     pos = exp_start
             sub = chunk[start:pos]
             if not _WORD_RE.match(sub):
