@@ -36,7 +36,7 @@ The wheel has **zero runtime dependencies** (`dependencies = []`, `py3-none-any`
 2. Click **Install Plugin** and select `dist/orca_x3g-0.1.0-py3-none-any.whl`.
 3. Enable the plugin. OrcaX3G registers three capabilities with **zero extra permission prompts**:
    - **Slicing Pipeline:** `X3G Exporter (Replicator 2)` (`Step.psGCodePostProcess`)
-   - **Page Tab:** `X3G Export` (shows latest export metrics, warnings, and profile checklist)
+   - **Page Tab:** `X3G Export` (built-in **interactive 3D WebGL `.x3g` viewer & time-playback simulator** + export metrics, warnings, and event timeline)
    - **Script Action:** `X3G Last Export Summary` (**File → Plugins → Run**)
 
 ### 3. Import the Recommended Replicator 2 Profiles
@@ -56,13 +56,15 @@ Import all three JSON presets from [`profiles/`](profiles/) via **File → Impor
 
 ---
 
-## Standalone CLI (`gcode2x3g`)
+## Standalone CLIs (`gcode2x3g` & `x3gview`)
 
-No OrcaSlicer installation is required to convert or verify G-code:
+No OrcaSlicer installation is required to convert, inspect, or simulate `.x3g` files:
 
 ```bash
 python3 -m pip install -e .
 gcode2x3g input.gcode output.x3g
+x3gview output.x3g                    # Opens interactive 3D WebGL playback viewer in your browser
+x3gview output.x3g --out preview.html --no-open
 ```
 
 Common options:

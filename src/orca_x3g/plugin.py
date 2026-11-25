@@ -20,7 +20,7 @@ Audit-safety (ADR-007):
 
 from __future__ import annotations
 
-import html
+import base64
 import json
 from pathlib import Path
 from typing import Any, Callable
@@ -29,11 +29,14 @@ from .converter import convert_file
 from .errors import OrcaX3GError
 from .machine_profile import get_profile
 from .planner import ConversionOptions
+from .viewer import build_viewer_html
 
 POST_PROCESS_CAPABILITY_NAME = "X3G Exporter (Replicator 2)"
 PAGE_CAPABILITY_NAME = "X3G Export"
 SCRIPT_CAPABILITY_NAME = "X3G Last Export Summary"
 SUMMARY_FILENAME = "last_export_summary.json"
+LAST_EXPORT_X3G_FILENAME = "last_export.x3g"
+X3G_STREAM_CHUNK_BYTES = 512 * 1024  # 512 KiB per post_message chunk
 
 DEFAULT_PLUGIN_SETTINGS: dict[str, Any] = {
     "machine_profile": "r2",
@@ -161,6 +164,38 @@ def _read_last_summary(orca_mod: Any) -> dict[str, Any] | None:
         return None
 
 
+def _last_x3g_file_path(orca_mod: Any) -> Path | None:
+    try:
+        storage_dir = orca_mod.host.plugin.storage()
+    except Exception:
+        return None
+    if not storage_dir:
+        return None
+    return Path(storage_dir) / LAST_EXPORT_X3G_FILENAME
+
+
+def _write_last_x3g(orca_mod: Any, x3g_bytes: bytes) -> None:
+    path = _last_x3g_file_path(orca_mod)
+    if path is None:
+        return
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(x3g_bytes)
+    except OSError:
+        # Non-fatal: never abort a valid X3G export because preview caching failed.
+        pass
+
+
+def _read_last_x3g(orca_mod: Any) -> bytes | None:
+    path = _last_x3g_file_path(orca_mod)
+    if path is None or not path.is_file():
+        return None
+    try:
+        return path.read_bytes()
+    except OSError:
+        return None
+
+
 def format_summary_dict_text(data: dict[str, Any]) -> str:
     """Format a persisted summary dictionary into readable text for dialogs."""
     total_s = int(round(float(data.get("estimated_print_time_s", 0.0))))
@@ -194,116 +229,8 @@ def format_summary_dict_text(data: dict[str, Any]) -> str:
 
 
 def build_export_page_html() -> str:
-    """Return themed HTML for the ``X3G Export`` OrcaSlicer tab."""
-    return """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>OrcaX3G Export</title>
-<style>
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--orca-bg, #1e1e1e);
-    color: var(--orca-fg, #e6e6e6);
-    margin: 0;
-    padding: 20px;
-    line-height: 1.5;
-  }
-  .card {
-    border: 1px solid var(--orca-border, #3a3a3a);
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 16px;
-    background: rgba(128, 128, 128, 0.06);
-  }
-  h1 { margin-top: 0; font-size: 1.35rem; }
-  h2 { margin-top: 0; font-size: 1.05rem; color: var(--orca-accent, #00ae42); }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 10px;
-  }
-  .metric {
-    border: 1px solid var(--orca-border, #3a3a3a);
-    border-radius: 6px;
-    padding: 10px;
-  }
-  .metric-label { font-size: 0.8rem; opacity: 0.75; }
-  .metric-val { font-size: 1.1rem; font-weight: 600; margin-top: 2px; }
-  button {
-    background: var(--orca-accent, #00ae42);
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 8px 14px;
-    cursor: pointer;
-    font-weight: 600;
-  }
-  pre {
-    white-space: pre-wrap;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.85rem;
-    background: rgba(0, 0, 0, 0.2);
-    padding: 10px;
-    border-radius: 6px;
-  }
-</style>
-</head>
-<body>
-  <h1>OrcaX3G — MakerBot Replicator 2 Exporter</h1>
-  <div class="card">
-    <h2>Last Export Summary</h2>
-    <div id="summary-container">Loading latest export report...</div>
-    <p><button id="refresh-btn" type="button">Refresh Summary</button></p>
-  </div>
-  <div class="card">
-    <h2>Required OrcaSlicer Profile Checklist</h2>
-    <ul>
-      <li><strong>Output filename format:</strong> <code>{input_filename_base}.x3g</code></li>
-      <li><strong>G-code flavor:</strong> <code>marlin</code> (not Sailfish/MakerWare)</li>
-      <li><strong>Arc fitting:</strong> Disabled (<code>enable_arc_fitting = disabled</code>)</li>
-      <li><strong>Z-hop type:</strong> Normal Lift (no Spiral Lift)</li>
-      <li><strong>Firmware retraction:</strong> Disabled</li>
-      <li><strong>Bed temperature:</strong> 0 &deg;C (no heated bed on Replicator 2)</li>
-    </ul>
-  </div>
-<script>
-function esc(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-function renderSummary(msg) {
-  const el = document.getElementById("summary-container");
-  if (!msg || !msg.summary) {
-    el.innerHTML = "<p>No X3G export has been recorded yet. Enable <strong>X3G Exporter (Replicator 2)</strong> in Process &rarr; Others &rarr; Slicing pipeline plugins, slice a plate, and click <strong>Export G-code</strong>.</p>";
-    return;
-  }
-  const s = msg.summary;
-  const warnings = (s.warnings || []).map(w => "<li>" + esc(w) + "</li>").join("");
-  const ignored = Object.entries(s.ignored_commands || {}).map(([k, v]) => esc(k) + " x " + esc(v)).join(", ") || "none";
-  el.innerHTML = `
-    <div class="grid">
-      <div class="metric"><div class="metric-label">Output</div><div class="metric-val">${esc(s.output_path || "")}</div></div>
-      <div class="metric"><div class="metric-label">Profile / Firmware</div><div class="metric-val">${esc(s.machine_profile)} / ${esc(s.firmware)}</div></div>
-      <div class="metric"><div class="metric-label">X3G Size</div><div class="metric-val">${Number(s.x3g_bytes || 0).toLocaleString()} B</div></div>
-      <div class="metric"><div class="metric-label">Motion Moves</div><div class="metric-val">${Number(s.motion_commands || 0).toLocaleString()}</div></div>
-      <div class="metric"><div class="metric-label">Layers</div><div class="metric-val">${Number(s.layers_detected || 0)}</div></div>
-      <div class="metric"><div class="metric-label">Filament</div><div class="metric-val">${Number(s.total_filament_mm || 0).toFixed(2)} mm</div></div>
-    </div>
-    <p><strong>Ignored commands:</strong> ${ignored}</p>
-    ${warnings ? "<p><strong>Warnings:</strong></p><ul>" + warnings + "</ul>" : "<p><strong>Warnings:</strong> none</p>"}
-  `;
-}
-if (window.orca) {
-  window.orca.onMessage(renderSummary);
-  document.getElementById("refresh-btn").addEventListener("click", () => {
-    window.orca.postMessage({ action: "refresh" });
-  });
-  window.orca.postMessage({ action: "refresh" });
-}
-</script>
-</body>
-</html>
-"""
+    """Return themed interactive 3D X3G viewer HTML for the ``X3G Export`` OrcaSlicer tab."""
+    return build_viewer_html()
 
 
 def build_orca_plugin_classes(orca_mod: Any) -> dict[str, type]:
@@ -400,6 +327,7 @@ def build_orca_plugin_classes(orca_mod: Any) -> dict[str, type]:
 
             summary_dict = result.summary.to_dict()
             _write_last_summary(orca_mod, summary_dict)
+            _write_last_x3g(orca_mod, result.x3g_bytes)
 
             one_liner = (
                 f"Exported X3G ({result.summary.x3g_bytes:,} B, "
@@ -425,6 +353,42 @@ def build_orca_plugin_classes(orca_mod: Any) -> dict[str, type]:
             action = data.get("action") if isinstance(data, dict) else None
             if action == "refresh":
                 self.post_message({"summary": _read_last_summary(orca_mod)})
+                return
+            if action == "load_last":
+                summary = _read_last_summary(orca_mod)
+                raw_x3g = _read_last_x3g(orca_mod)
+                if raw_x3g is None:
+                    self.post_message({"type": "x3g_none", "summary": summary})
+                    return
+                name = (
+                    Path(str(summary.get("output_path", LAST_EXPORT_X3G_FILENAME))).name
+                    if summary and summary.get("output_path")
+                    else LAST_EXPORT_X3G_FILENAME
+                )
+                profile_id = str(summary.get("machine_profile", "r2")) if summary else "r2"
+                total_chunks = max(
+                    1, (len(raw_x3g) + X3G_STREAM_CHUNK_BYTES - 1) // X3G_STREAM_CHUNK_BYTES
+                )
+                self.post_message(
+                    {
+                        "type": "x3g_begin",
+                        "name": name,
+                        "profile": profile_id,
+                        "total_bytes": len(raw_x3g),
+                        "total_chunks": total_chunks,
+                        "summary": summary,
+                    }
+                )
+                for idx in range(total_chunks):
+                    start = idx * X3G_STREAM_CHUNK_BYTES
+                    chunk = raw_x3g[start : start + X3G_STREAM_CHUNK_BYTES]
+                    self.post_message(
+                        {
+                            "type": "x3g_chunk",
+                            "index": idx,
+                            "b64": base64.b64encode(chunk).decode("ascii"),
+                        }
+                    )
 
     class X3GSummaryScriptCapability(orca_mod.script.ScriptPluginCapabilityBase):
         """Shows the latest X3G export summary in a native dialog (File -> Plugins -> Run)."""
@@ -462,8 +426,6 @@ def build_orca_plugin_classes(orca_mod: Any) -> dict[str, type]:
             orca_mod.register_capability(X3GExportPageCapability)
             orca_mod.register_capability(X3GSummaryScriptCapability)
 
-    # Suppress unused-import warning on html (kept for future custom escaping)
-    _ = html
     return {
         "OrcaX3GPlugin": OrcaX3GPlugin,
         "X3GPostProcessCapability": X3GPostProcessCapability,

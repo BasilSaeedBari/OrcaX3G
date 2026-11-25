@@ -256,12 +256,28 @@ def test_plugin_full_lifecycle_postprocess_page_and_script(tmp_path: Path) -> No
     assert persisted["motion_commands"] == rep.metrics.x3g_motion_total
     assert persisted["output_path"] == "/media/sd/CUBE01.X3G"
 
-    # Exercise X3GExportPageCapability
+    # Exercise X3GExportPageCapability (both summary refresh and chunked 3D X3G load_last)
     html_ui = page_cap.get_ui()
-    assert "--orca-bg" in html_ui and "window.orca" in html_ui
+    assert "--orca-bg" in html_ui and "window.orca" in html_ui and "decodeX3G" in html_ui
     page_cap.on_message({"action": "refresh"})
     assert len(page_cap.posted_messages) == 1
     assert page_cap.posted_messages[0]["summary"]["motion_commands"] == rep.metrics.x3g_motion_total
+
+    page_cap.posted_messages.clear()
+    page_cap.on_message({"action": "load_last"})
+    assert len(page_cap.posted_messages) >= 2
+    begin_msg = page_cap.posted_messages[0]
+    assert begin_msg["type"] == "x3g_begin"
+    assert begin_msg["name"] == "CUBE01.X3G"
+    assert begin_msg["total_bytes"] == len(x3g_bytes)
+    import base64 as _b64
+
+    reassembled = b"".join(
+        _b64.b64decode(m["b64"])
+        for m in page_cap.posted_messages[1:]
+        if m.get("type") == "x3g_chunk"
+    )
+    assert reassembled == x3g_bytes
 
     # Exercise X3GSummaryScriptCapability (runs on UI thread -> calls orca.host.ui.message)
     script_res = script_cap.execute()

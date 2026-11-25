@@ -2,6 +2,16 @@
 
 All notable changes to **OrcaX3G** are documented in this file.
 
+## [0.2.0] - 2026-11-25
+
+### Added
+- **Interactive 3D WebGL `.x3g` Viewer & Time-Playback Simulator (`src/orca_x3g/viewer.py`):**
+  - Integrated directly into OrcaSlicer `v2.5.2`'s **`X3G Export`** main-window tab (`X3GExportPageCapability`), automatically loading the most recently exported `.x3g` binary via chunked base64 `window.orca` bridge (zero audit prompts) and supporting drag-and-drop / file picker for any `.x3g` or framed `.s3g` file.
+  - Self-contained WebGL 1.0 renderer (with automatic Canvas 2D projection fallback) showing the MakerBot Replicator 2 `285 × 152 × 155 mm` build box, animated 3D nozzle head, real-time `1×`–`1000×` playback, continuous time & layer scrubbers, speed/layer/move-type color modes, progressive retraction markers, live telemetry HUD, and clickable control-event timeline.
+  - Standalone `x3gview` CLI (`x3gview model.x3g` / `--out preview.html --no-open`).
+- **One-Click OrcaSlicer `v2.5.2` Printer Bundle & Slow Safe 50 mm/s Profile (`profiles/`):**
+  - Added `profiles/MakerBot_Replicator_2.orca_printer` single-file bundle importing the custom Replicator 2 printer, `0.20mm Slow Safe Test 50mms @MakerBot Replicator 2` (`<= 50 mm/s`, `500–800 mm/s²`), Standard process, and Generic PLA filament together.
+
 ## [0.1.0] - 2026-11-25
 
 ### Added
