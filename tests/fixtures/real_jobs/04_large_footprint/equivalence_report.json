@@ -1,0 +1,54 @@
+{
+  "job_name": "04_large_footprint",
+  "metadata": {
+    "gcode_bytes": 743860,
+    "ignored_commands": {
+      "M204": 2872
+    },
+    "slicer": "OrcaSlicer 2.5.2",
+    "warnings": 1,
+    "x3g_bytes": 710505
+  },
+  "metrics": {
+    "build_ended": true,
+    "build_started": true,
+    "control_events_compared": 188,
+    "final_e_cum_err_mm": 0.002272781068313634,
+    "final_x_err_mm": 0.00024984467967215096,
+    "final_y_err_mm": 0.0007500756140643716,
+    "final_z_err_mm": 0.0,
+    "gcode_final_e_mm": 4846.230099999549,
+    "gcode_motion_total": 22183,
+    "gcode_nonzero_step_motions": 22183,
+    "gcode_total_time_s": 2715.8666208586715,
+    "gcode_zero_step_motions": 0,
+    "max_dda_rate_err_steps_s": 0.499129996343072,
+    "max_dda_rel_speed_err": 0.00022106452954448385,
+    "max_e_cum_err_mm": 0.0051931184610793935,
+    "max_e_seg_err_mm": 0.010366049195150884,
+    "max_feedrate_mult64_err_mm_s": 0.005208333333332149,
+    "max_x_err_mm": 0.005500157809379402,
+    "max_y_err_mm": 0.00550007905938088,
+    "max_z_err_mm": 0.0,
+    "time_abs_err_s": 0.04009495959735432,
+    "time_rel_err": 1.4763228536119183e-05,
+    "x3g_final_e_mm": 4846.232372780617,
+    "x3g_motion_total": 22183,
+    "x3g_total_time_s": 2715.906715818269
+  },
+  "passed": true,
+  "profile_id": "r2",
+  "tolerances": {
+    "dda_rate_abs_steps_s": 0.5001,
+    "e_cum_half_step_mm": 0.005193446355465627,
+    "e_seg_one_step_mm": 0.010386892710931255,
+    "feedrate_mult64_abs_mm_s": 0.0078135,
+    "time_abs_floor_s": 0.5,
+    "time_rel_tol": 0.005,
+    "x_half_step_mm": 0.0056250009929687496,
+    "y_half_step_mm": 0.0056250009929687496,
+    "z_half_step_mm": 0.001250001
+  },
+  "violation_count": 0,
+  "violations": []
+}
