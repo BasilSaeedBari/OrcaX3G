@@ -1,0 +1,88 @@
+{
+  "type": "machine",
+  "name": "MakerBot Replicator 2 0.4 nozzle",
+  "from": "User",
+  "version": "2.5.2.0",
+  "printer_technology": "FFF",
+  "gcode_flavor": "marlin",
+  "printable_area": [
+    "-142.5x-76",
+    "142.5x-76",
+    "142.5x76",
+    "-142.5x76"
+  ],
+  "printable_height": "155",
+  "nozzle_diameter": [
+    "0.4"
+  ],
+  "extruder_clearance_height_to_lid": "155",
+  "extruder_clearance_height_to_rod": "25",
+  "extruder_clearance_radius": "45",
+  "machine_max_feedrate_x": [
+    "300",
+    "300"
+  ],
+  "machine_max_feedrate_y": [
+    "300",
+    "300"
+  ],
+  "machine_max_feedrate_z": [
+    "19",
+    "19"
+  ],
+  "machine_max_feedrate_e": [
+    "26",
+    "26"
+  ],
+  "machine_max_acceleration_x": [
+    "1000",
+    "1000"
+  ],
+  "machine_max_acceleration_y": [
+    "1000",
+    "1000"
+  ],
+  "machine_max_acceleration_z": [
+    "150",
+    "150"
+  ],
+  "machine_max_acceleration_e": [
+    "2000",
+    "2000"
+  ],
+  "machine_max_acceleration_extruding": [
+    "1000",
+    "1000"
+  ],
+  "machine_max_acceleration_retracting": [
+    "1000",
+    "1000"
+  ],
+  "machine_max_acceleration_travel": [
+    "1000",
+    "1000"
+  ],
+  "emit_machine_limits_to_gcode": "0",
+  "use_relative_e_distances": "0",
+  "use_firmware_retraction": "0",
+  "auxiliary_fan": "0",
+  "retraction_length": [
+    "1.3"
+  ],
+  "retraction_speed": [
+    "25"
+  ],
+  "deretraction_speed": [
+    "25"
+  ],
+  "z_hop": [
+    "0"
+  ],
+  "z_hop_types": [
+    "Normal Lift"
+  ],
+  "machine_start_gcode": "; MakerBot Replicator 2 start G-code (OrcaX3G)\nM136 ; start build\nM73 P0\nG21 ; millimeters\nG90 ; absolute positioning\nM82 ; absolute extrusion\nG162 X Y F2500 ; home X and Y to max endstops\nG161 Z F1100 ; home Z to min endstop\nG92 Z-5 ; set Z offset for safe re-home\nG1 Z0.0 F1100 ; move Z down slightly\nG161 Z F100 ; slow precision Z home\nM132 X Y Z A B ; recall calibrated home offsets from EEPROM\nG1 X-112 Y-73 Z30 F3300 ; move to front-left waiting corner\nG130 X118 Y118 Z40 A118 B118 ; set stepper digipots (Replicator 2 defaults)\nT0 ; select single right extruder\nM104 S[nozzle_temperature_initial_layer] T0 ; set nozzle target temperature\nM109 S[nozzle_temperature_initial_layer] T0 ; wait for nozzle to reach temperature\nG92 E0 ; reset logical extruder\nG1 X-112 Y-73 Z0.3 F1500 ; drop to prime height\nG1 X-60 Y-73 Z0.3 E8.0 F1200 ; prime purge line\nG92 E0 ; reset logical extruder for print",
+  "machine_end_gcode": "; MakerBot Replicator 2 end G-code (OrcaX3G)\nM73 P100\nG92 E0\nG1 E-1.3 F1500 ; short retract\nM107 ; part cooling fan off\nM104 S0 T0 ; extruder heater off\nG1 Z150 F1100 ; lower build platform\nG162 X Y F2500 ; park carriage at max endstops\nM18 ; disable stepper motors\nM72 P1 ; play Ta-Da song\nM137 ; end build",
+  "before_layer_change_gcode": ";LAYER_CHANGE\n;Z:[layer_z]\n;LAYER:[layer_num]",
+  "layer_change_gcode": "M73 P[percentage_of_print]"
+}

@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orca-x3g"
+version = "0.1.0"
+description = "Clean-room OrcaSlicer v2.5.2 plugin and CLI to export verified X3G files for the MakerBot Replicator 2."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+authors = [
+    { name = "BasilSaeedBari", email = "basilsaeed54@gmail.com" },
+]
+keywords = ["orcaslicer", "plugin", "x3g", "s3g", "makerbot", "replicator-2", "sailfish", "3d-printing"]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "hypothesis>=6.100",
+    "matplotlib>=3.8",
+    "build>=1.2",
+]
+
+[project.scripts]
+gcode2x3g = "orca_x3g.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
