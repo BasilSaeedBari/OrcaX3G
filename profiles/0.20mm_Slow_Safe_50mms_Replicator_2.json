@@ -1,8 +1,11 @@
 {
   "type": "process",
-  "name": "0.20mm Slow Safe Test (50mm/s) @MakerBot Replicator 2",
+  "name": "0.20mm Slow Safe Test 50mms @MakerBot Replicator 2",
+  "print_settings_id": "0.20mm Slow Safe Test 50mms @MakerBot Replicator 2",
   "from": "User",
-  "version": "2.5.2.0",
+  "is_custom_defined": "1",
+  "inherits": "",
+  "version": "2.5.2",
   "compatible_printers": [
     "MakerBot Replicator 2 0.4 nozzle"
   ],

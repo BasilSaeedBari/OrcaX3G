@@ -1,8 +1,13 @@
 {
   "type": "machine",
   "name": "MakerBot Replicator 2 0.4 nozzle",
+  "printer_settings_id": "MakerBot Replicator 2 0.4 nozzle",
+  "printer_model": "MakerBot Replicator 2",
+  "printer_variant": "0.4",
   "from": "User",
-  "version": "2.5.2.0",
+  "is_custom_defined": "1",
+  "inherits": "",
+  "version": "2.5.2",
   "printer_technology": "FFF",
   "gcode_flavor": "marlin",
   "printable_area": [

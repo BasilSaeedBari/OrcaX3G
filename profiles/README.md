@@ -1,6 +1,11 @@
 # Recommended OrcaSlicer v2.5.2 Profiles for MakerBot Replicator 2
 
-Import these JSON presets in OrcaSlicer via **File → Import → Import Configs...**:
+### One-Click Import (Recommended — Imports Printer + All Profiles Together)
+You do **not** need to manually create or pre-select a printer first. In OrcaSlicer `v2.5.2`, go to **File → Import → Import Configs...** and select:
+- **[`MakerBot_Replicator_2.orca_printer`](MakerBot_Replicator_2.orca_printer)** — Single bundle archive containing the standalone custom **MakerBot Replicator 2 0.4 nozzle** printer (`is_custom_defined = "1"`, `inherits = ""`) plus the Slow Safe 50 mm/s process, Standard process, and Generic PLA filament presets.
+
+### Individual JSON Presets (Alternative)
+You can also import the individual JSON files via **File → Import → Import Configs...** (import the printer JSON first, then the process & filament JSONs):
 
 1. [`MakerBot_Replicator_2_0.4_nozzle.json`](MakerBot_Replicator_2_0.4_nozzle.json) — Machine profile:
    - Centered build plate `285 × 152 × 155 mm` (`X ∈ [-142.5, +142.5]`, `Y ∈ [-76, +76]`, `Z ∈ [0, 155]`).
