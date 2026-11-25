@@ -2,6 +2,11 @@
 
 All notable changes to **OrcaX3G** are documented in this file.
 
+## [0.2.1] - 2026-11-25
+
+### Fixed
+- **3D X3G Viewer UI contrast & option menus (`src/orca_x3g/viewer.py`):** Fixed invisible dark-on-dark text in buttons, `<select>` dropdowns, sidebar, and HUD overlays caused by mixing OrcaSlicer's `--orca-fg` variable with hardcoded dark surfaces when `--orca-panel-bg` was unset. Replaced with complete paired high-contrast Dark & Light token sets (`data-theme="dark"|"light"`), explicit `.app select option` colors + `color-scheme`, automatic host luminance detection, and a manual **Theme: Dark / Light** toggle button.
+
 ## [0.2.0] - 2026-11-25
 
 ### Added

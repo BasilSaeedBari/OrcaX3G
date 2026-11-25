@@ -32,16 +32,46 @@ _VIEWER_HTML_TEMPLATE = r"""<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OrcaX3G — Interactive 3D X3G Viewer</title>
 <style>
-  :root {
-    --bg: var(--orca-bg, #16181c);
-    --panel: var(--orca-panel-bg, #1f2228);
-    --fg: var(--orca-fg, #e6e9ef);
-    --muted: #9aa3b2;
+  /* Complete, self-consistent high-contrast themes (never mixes light text on dark surfaces).
+     Note: references --orca-bg / --orca-accent only safely via JS luminance detection & accent. */
+  :root, :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #15181e;
+    --panel: #1e222b;
+    --card-bg: #252b36;
+    --input-bg: #2c3340;
+    --input-hover: #363f4f;
+    --fg: #f1f5f9;
+    --muted: #b0bac9;
     --accent: var(--orca-accent, #00ae42);
-    --accent-dim: rgba(0, 174, 66, 0.18);
-    --border: var(--orca-border, #323741);
-    --warn: #f59e0b;
-    --danger: #ef4444;
+    --accent-fg: #ffffff;
+    --accent-dim: rgba(0, 174, 66, 0.24);
+    --border: #3d4657;
+    --warn-bg: rgba(245, 158, 11, 0.16);
+    --warn-border: rgba(245, 158, 11, 0.55);
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #eef1f5;
+    --panel: #f8fafc;
+    --card-bg: #ffffff;
+    --input-bg: #ffffff;
+    --input-hover: #f1f5f9;
+    --fg: #111827;
+    --muted: #4b5563;
+    --accent: var(--orca-accent, #00993a);
+    --accent-fg: #ffffff;
+    --accent-dim: rgba(0, 153, 58, 0.14);
+    --border: #cbd5e1;
+    --warn-bg: rgba(245, 158, 11, 0.14);
+    --warn-border: rgba(217, 119, 6, 0.55);
+  }
+  /* 3D canvas overlays always sit on the dark 3D viewport -> always explicit light-on-dark */
+  .hud-tl, .legend, .layer-rail {
+    --hud-bg: rgba(16, 19, 25, 0.90);
+    --hud-fg: #f3f6fb;
+    --hud-muted: #aeb8c7;
+    --hud-border: #3b4454;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -49,12 +79,12 @@ _VIEWER_HTML_TEMPLATE = r"""<!DOCTYPE html>
     overflow: hidden;
     background: var(--bg);
     color: var(--fg);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--orca-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
     font-size: 13px;
   }
   .app {
     display: grid;
-    grid-template-rows: 46px 1fr 86px;
+    grid-template-rows: 48px 1fr 88px;
     grid-template-columns: 1fr 310px;
     height: 100vh;
     width: 100vw;
@@ -66,6 +96,7 @@ _VIEWER_HTML_TEMPLATE = r"""<!DOCTYPE html>
     gap: 8px;
     padding: 0 12px;
     background: var(--panel);
+    color: var(--fg);
     border-bottom: 1px solid var(--border);
     overflow-x: auto;
   }
@@ -78,30 +109,48 @@ _VIEWER_HTML_TEMPLATE = r"""<!DOCTYPE html>
     white-space: nowrap;
   }
   .sep { width: 1px; height: 22px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
-  button, select, label.btn {
-    background: #2a2f38;
+  .app button, .app select, .app label.btn {
+    background-color: var(--input-bg);
     color: var(--fg);
     border: 1px solid var(--border);
     border-radius: 5px;
     padding: 5px 10px;
     font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
     gap: 5px;
   }
-  button:hover, select:hover, label.btn:hover { border-color: var(--accent); }
-  button.primary {
-    background: var(--accent);
-    color: #fff;
+  .app select option, .app select optgroup {
+    background-color: var(--panel);
+    color: var(--fg);
+  }
+  .app button:hover:not(:disabled), .app select:hover, .app label.btn:hover {
+    background-color: var(--input-hover);
+    border-color: var(--accent);
+    color: var(--fg);
+  }
+  .app button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .app button.primary, .app label.btn.primary {
+    background-color: var(--accent);
+    color: var(--accent-fg);
     border-color: var(--accent);
     font-weight: 600;
   }
-  button.active {
-    background: var(--accent-dim);
+  .app button.primary:hover:not(:disabled), .app label.btn.primary:hover {
+    filter: brightness(1.08);
+    background-color: var(--accent);
+    color: var(--accent-fg);
+  }
+  .app button.active {
+    background-color: var(--accent-dim);
     border-color: var(--accent);
-    color: #fff;
+    color: var(--fg);
   }
   #file-input { display: none; }
   .viewport-wrap {
@@ -116,8 +165,9 @@ _VIEWER_HTML_TEMPLATE = r"""<!DOCTYPE html>
   canvas#glcanvas:active { cursor: grabbing; }
   .drop-overlay {
     position: absolute; inset: 0;
-    background: rgba(0, 174, 66, 0.16);
+    background: rgba(0, 174, 66, 0.22);
     border: 2px dashed var(--accent);
+    color: #ffffff;
     display: none;
     align-items: center;
     justify-content: center;
@@ -134,14 +184,22 @@ _VIEWER_HTML_TEMPLATE = r"""<!DOCTYPE html>
     text-align: center;
     padding: 24px;
     pointer-events: none;
-    color: var(--muted);
+    color: #c5cedb;
   }
-  .empty-state h2 { color: var(--fg); margin: 0 0 8px 0; font-size: 17px; }
+  .empty-state h2 { color: #f8fafc; margin: 0 0 8px 0; font-size: 17px; }
   .empty-state p { max-width: 440px; margin: 4px 0; line-height: 1.5; }
+  .empty-state strong { color: #ffffff; }
+  .empty-state code {
+    background: rgba(255, 255, 255, 0.12);
+    color: #f8fafc;
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
   .hud-tl {
     position: absolute; top: 10px; left: 10px;
-    background: rgba(18, 20, 25, 0.84);
-    border: 1px solid var(--border);
+    background: var(--hud-bg);
+    color: var(--hud-fg);
+    border: 1px solid var(--hud-border);
     border-radius: 7px;
     padding: 8px 11px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -149,17 +207,18 @@ _VIEWER_HTML_TEMPLATE = r"""<!DOCTYPE html>
     line-height: 1.55;
     pointer-events: none;
     backdrop-filter: blur(4px);
-    min-width: 235px;
+    min-width: 240px;
   }
   .hud-row { display: flex; justify-content: space-between; gap: 14px; }
-  .hud-k { color: var(--muted); }
-  .hud-v { color: var(--fg); font-weight: 600; }
+  .hud-k { color: var(--hud-muted); }
+  .hud-v { color: var(--hud-fg); font-weight: 600; }
   .hud-v.on { color: #38bdf8; }
   .hud-v.hot { color: #fb923c; }
   .legend {
     position: absolute; bottom: 10px; left: 10px;
-    background: rgba(18, 20, 25, 0.84);
-    border: 1px solid var(--border);
+    background: var(--hud-bg);
+    color: var(--hud-fg);
+    border: 1px solid var(--hud-border);
     border-radius: 6px;
     padding: 6px 10px;
     font-size: 11px;
@@ -169,17 +228,18 @@ _VIEWER_HTML_TEMPLATE = r"""<!DOCTYPE html>
     width: 150px; height: 8px; border-radius: 4px; margin: 4px 0 2px 0;
     background: linear-gradient(90deg, #2563eb, #06b6d4, #22c55e, #eab308, #ef4444);
   }
-  .legend-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
+  .legend-labels { display: flex; justify-content: space-between; color: var(--hud-muted); font-size: 10px; }
   .layer-rail {
     position: absolute; right: 12px; top: 14px; bottom: 14px;
-    width: 44px;
+    width: 46px;
     display: flex; flex-direction: column; align-items: center; gap: 6px;
-    background: rgba(18, 20, 25, 0.82);
-    border: 1px solid var(--border);
+    background: var(--hud-bg);
+    color: var(--hud-fg);
+    border: 1px solid var(--hud-border);
     border-radius: 8px;
     padding: 8px 4px;
   }
-  .layer-rail span { font-size: 10px; color: var(--muted); font-family: ui-monospace, monospace; }
+  .layer-rail span { font-size: 10.5px; color: var(--hud-fg); font-weight: 600; font-family: ui-monospace, monospace; }
   .layer-slider-wrap {
     flex: 1; display: flex; align-items: center; justify-content: center;
     width: 100%; overflow: hidden;
@@ -194,22 +254,27 @@ _VIEWER_HTML_TEMPLATE = r"""<!DOCTYPE html>
   }
   .sidebar {
     background: var(--panel);
+    color: var(--fg);
     border-left: 1px solid var(--border);
     display: flex; flex-direction: column;
     overflow: hidden;
   }
   .side-tabs {
     display: flex; border-bottom: 1px solid var(--border);
+    background: var(--panel);
   }
   .side-tab {
     flex: 1; padding: 9px 6px; text-align: center;
     cursor: pointer; font-weight: 600; font-size: 12px;
     color: var(--muted); border-bottom: 2px solid transparent;
-    background: transparent; border-radius: 0; border-top: 0; border-left: 0; border-right: 0;
+    background-color: transparent; border-radius: 0; border-top: 0; border-left: 0; border-right: 0;
   }
-  .side-tab.active { color: var(--fg); border-bottom-color: var(--accent); }
+  .side-tab:hover { color: var(--fg); background-color: var(--input-hover); }
+  .side-tab.active { color: var(--fg); border-bottom-color: var(--accent); background-color: transparent; }
   .side-body {
     flex: 1; overflow-y: auto; padding: 12px;
+    background: var(--panel);
+    color: var(--fg);
   }
   .section { margin-bottom: 14px; }
   .section h3 {
@@ -220,35 +285,39 @@ _VIEWER_HTML_TEMPLATE = r"""<!DOCTYPE html>
     display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
   }
   .kv-card {
-    background: rgba(0, 0, 0, 0.22);
+    background: var(--card-bg);
+    color: var(--fg);
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 7px 8px;
   }
   .kv-label { font-size: 10.5px; color: var(--muted); }
-  .kv-val { font-size: 12.5px; font-weight: 600; margin-top: 2px; word-break: break-all; }
+  .kv-val { font-size: 12.5px; font-weight: 600; color: var(--fg); margin-top: 2px; word-break: break-all; }
   .check-row {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 4px 0; font-size: 12px;
+    padding: 5px 0; font-size: 12.5px; color: var(--fg);
   }
-  .check-row input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
+  .check-row label { color: var(--fg); cursor: pointer; }
+  .check-row input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; width: 15px; height: 15px; }
   .event-list {
     display: flex; flex-direction: column; gap: 4px;
   }
   .event-item {
-    background: rgba(0, 0, 0, 0.22);
+    background: var(--card-bg);
+    color: var(--fg);
     border: 1px solid var(--border);
     border-radius: 5px;
-    padding: 5px 8px;
+    padding: 6px 8px;
     cursor: pointer;
     font-size: 11.5px;
     display: flex; justify-content: space-between; gap: 6px;
   }
-  .event-item:hover { border-color: var(--accent); }
+  .event-item:hover { border-color: var(--accent); background: var(--input-hover); }
   .event-time { color: var(--muted); font-family: ui-monospace, monospace; flex-shrink: 0; }
   .warn-box {
-    background: rgba(245, 158, 11, 0.12);
-    border: 1px solid rgba(245, 158, 11, 0.45);
+    background: var(--warn-bg);
+    color: var(--fg);
+    border: 1px solid var(--warn-border);
     border-radius: 6px;
     padding: 8px;
     font-size: 11.5px;
@@ -258,6 +327,7 @@ _VIEWER_HTML_TEMPLATE = r"""<!DOCTYPE html>
   .controls {
     grid-column: 1 / 3;
     background: var(--panel);
+    color: var(--fg);
     border-top: 1px solid var(--border);
     padding: 8px 14px;
     display: flex; flex-direction: column; justify-content: center; gap: 7px;
@@ -270,7 +340,7 @@ _VIEWER_HTML_TEMPLATE = r"""<!DOCTYPE html>
   }
   .time-label {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12px; color: var(--fg); min-width: 145px; text-align: right;
+    font-size: 12px; font-weight: 600; color: var(--fg); min-width: 145px; text-align: right;
   }
   .play-row {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -304,6 +374,8 @@ _VIEWER_HTML_TEMPLATE = r"""<!DOCTYPE html>
     <button id="cam-front" type="button">Front</button>
     <button id="cam-side" type="button">Side</button>
     <button id="cam-fit" type="button">Fit</button>
+    <div class="sep"></div>
+    <button id="btn-theme" type="button" title="Toggle Dark / Light UI theme">Theme: Dark</button>
   </div>
 
   <div class="viewport-wrap" id="viewport-wrap">
@@ -1514,7 +1586,38 @@ document.getElementById("btn-load-last").addEventListener("click", () => {
   }
 });
 
+// === Theme Detection & Toggle (prevents OrcaSlicer light/dark variable mismatch) ===
+function applyTheme(mode) {
+  const m = (mode === "light") ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", m);
+  const btn = document.getElementById("btn-theme");
+  if (btn) btn.textContent = (m === "dark") ? "Theme: Dark" : "Theme: Light";
+}
+function detectHostTheme() {
+  try {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue("--orca-bg").trim();
+    if (raw) {
+      const tmp = document.createElement("div");
+      tmp.style.color = raw;
+      document.body.appendChild(tmp);
+      const rgb = getComputedStyle(tmp).color;
+      document.body.removeChild(tmp);
+      const m = rgb.match(/\d+/g);
+      if (m && m.length >= 3) {
+        const lum = (0.299 * (+m[0]) + 0.587 * (+m[1]) + 0.114 * (+m[2])) / 255;
+        return lum > 0.55 ? "light" : "dark";
+      }
+    }
+  } catch (e) {}
+  return "dark";
+}
+document.getElementById("btn-theme").addEventListener("click", () => {
+  const cur = document.documentElement.getAttribute("data-theme") || "dark";
+  applyTheme(cur === "dark" ? "light" : "dark");
+});
+
 // === Bootstrap ===
+applyTheme(detectHostTheme());
 initRenderer();
 renderScene();
 requestAnimationFrame(tick);

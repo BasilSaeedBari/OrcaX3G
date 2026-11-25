@@ -32,7 +32,7 @@ from .machine_profile import (
 from .planner import ConversionOptions, ExportSummary, GCodePlanner, round_half_away
 from .plugin import register_with_orca
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 __all__ = [
     "AxisSpec",

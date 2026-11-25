@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "orca-x3g"
-version = "0.2.0"
+version = "0.2.1"
 description = "Clean-room OrcaSlicer v2.5.2 plugin and CLI to export verified X3G files for the MakerBot Replicator 2."
 readme = "README.md"
 license = "MIT"
